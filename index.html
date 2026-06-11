@@ -873,7 +873,277 @@ async function exportSite(){
     const s=getSaved();
     const resp=await fetch(window.location.href);
     let html2=await resp.text();
-    html2=html2.replace(/
+    html2=html2.replace(/<script id="sabina-init">[\s\S]*?<\/script>/,'');
+    const initScript='<script id="sabina-init">localStorage.setItem(\'sabina_settings\','+JSON.stringify(JSON.stringify(s))+');<\/script>';
+    html2=html2.replace('<\/head>',initScript+'<\/head>');
+    const blob=new Blob([html2],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='sabina-shop.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    showSaveToast('✓ File scaricato! Caricalo su GitHub per aggiornare il sito.');
+  }catch(e){
+    alert('Errore durante l\'esportazione. Riprova.');
+    console.error(e);
+  }
+}
+function resetAdmin(){
+  if(!confirm('Vuoi ripristinare tutti i valori originali? Verranno cancellate tutte le modifiche.')) return;
+  localStorage.removeItem('sabina_settings');
+  window._pendingPhotos={};
+  applySettings(); closeAdmin(); showSaveToast('Valori originali ripristinati!');
+}
+
+function applySettings(){
+  const s=getSaved();
+  if(s.phone) PHONE=s.phone;
+  // Apply to base products
+  if(s.prices) PRODUCTS.forEach(p=>{if(s.prices[p.id]!==undefined) p.price=s.prices[p.id];});
+  if(s.descs)  PRODUCTS.forEach(p=>{if(s.descs[p.id]!==undefined)  p.desc=s.descs[p.id];});
+  if(s.names)  PRODUCTS.forEach(p=>{if(s.names[p.id]!==undefined)  p.name=s.names[p.id];});
+  if(s.photos) PRODUCTS.forEach(p=>{if(s.photos[p.id]) p._customPhoto=s.photos[p.id];});
+  // Apply to extra products
+  const extra=s.extraProducts||[];
+  extra.forEach(p=>{
+    if(s.prices&&s.prices[p.id]!==undefined) p.price=s.prices[p.id];
+    if(s.descs&&s.descs[p.id]!==undefined)   p.desc=s.descs[p.id];
+    if(s.names&&s.names[p.id]!==undefined)   p.name=s.names[p.id];
+    if(s.photos&&s.photos[p.id])              p._customPhoto=s.photos[p.id];
+  });
+  // Update footer social links
+  const igUser=s.instagram||'fior_dicarta_';
+  const fbUrl=s.facebook?(s.facebook.startsWith('http')?s.facebook:'https://www.facebook.com/'+s.facebook):'https://www.facebook.com/share/18oxUSsTEy/?mibextid=wwXIfr';
+  const igEl=document.getElementById('footer-instagram');
+  const fbEl=document.getElementById('footer-facebook');
+  if(igEl){igEl.href='https://www.instagram.com/'+igUser;igEl.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg> '+igUser;}
+  const navIg=document.getElementById('nav-instagram');
+  if(navIg){navIg.href='https://www.instagram.com/'+igUser;navIg.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg> '+igUser;}
+  if(fbEl){
+    if(fbUrl){fbEl.href=fbUrl;fbEl.style.display='';}
+    else fbEl.style.display='none';
+  }
+  renderProducts(); updateCartUI();
+}
+
+// renderProducts — include prodotti base + extra da admin
+function renderProducts(){
+  const s=getSaved();
+  const extra=(s.extraProducts||[]).map(p=>{
+    if(s.photos&&s.photos[p.id]) p._customPhoto=s.photos[p.id];
+    return p;
+  });
+  const all=[...PRODUCTS,...extra];
+  const grid=document.getElementById('product-grid');
+  const filtered=currentCat==='all'?all:all.filter(p=>p.cat===currentCat);
+  grid.innerHTML=filtered.map(p=>`
+    <div class="product-card">
+      <div class="product-img">
+        <img src="${p._customPhoto||(p.img?IMAGES[p.img]:'')||'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22230%22><rect width=%22260%22 height=%22230%22 fill=%22%23f5f0e8%22/><text x=%22130%22 y=%22125%22 text-anchor=%22middle%22 fill=%22%23c4a882%22 font-size=%2248%22>🌸</text></svg>'}" alt="${p.name}" loading="lazy" onclick="openLightbox(this.src,\`${p.name}\`)">
+        <div class="product-img-overlay">
+          <button class="overlay-btn" onclick="event.stopPropagation();addToCart(${p.id})">+ Aggiungi</button>
+        </div>
+      </div>
+      <div class="product-info">
+        <div class="product-category">${catLabel(p.cat)}</div>
+        <div class="product-name">${p.name}</div>
+        <div class="product-desc">${p.desc||''}</div>
+        <div class="product-footer">
+          <span class="product-price">${p.cat==='giganti'?'Prezzo su misura':''}${p.cat!=='giganti'&&p.price>0?'&#8364;'+p.price:''}${p.cat!=='giganti'&&p.price===0?'Su richiesta':''}</span>
+          ${p.cat==='giganti'?'<span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px">Il prezzo varia in base alla misura del fiore</span>':''}
+          <button class="add-btn" onclick="addToCart(${p.id})">+ Carrello</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function showSaveToast(msg){
+  const t=document.createElement('div');
+  t.textContent=msg||'Salvato!';
+  t.style.cssText='position:fixed;bottom:24px;left:24px;transform:none;background:var(--sage-dark);color:white;padding:10px 20px;border-radius:4px;font-family:var(--font-sans);font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2)';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+// Update addToCart to work with extra products
+function addToCart(id){
+  const s=getSaved();
+  const extra=s.extraProducts||[];
+  const all=[...PRODUCTS,...extra];
+  const p=all.find(x=>x.id===id);
+  if(!p) return;
+  const ex=cart.find(x=>x.id===id);
+  if(ex) ex.qty++;
+  else cart.push({...p,qty:1});
+  updateCartUI();
+  if(!document.getElementById('cart-drawer').classList.contains('open')) toggleCart();
+}
+
+let PHONE = '393293354819';
+document.addEventListener('DOMContentLoaded', applySettings);
+// ============ END ADMIN ============
+
+
+// LIGHTBOX + ZOOM & PAN
+const ZOOM_LEVEL = 2.5;
+let lbZoomed = false, lbDragging = false;
+let lbStartX, lbStartY, lbTransX = 0, lbTransY = 0, lbLastX = 0, lbLastY = 0;
+
+function openLightbox(src, name){
+  if(!src || src.includes('data:image/svg')) return;
+  const overlay = document.getElementById('lightbox-overlay');
+  const img = document.getElementById('lightbox-img');
+  const cap = document.getElementById('lightbox-caption');
+  if(!overlay||!img) return;
+  img.src = src;
+  img.style.transform = 'scale(1)';
+  img.style.transition = 'transform 0.3s ease';
+  if(cap) cap.textContent = name || '';
+  lbZoomed = false; lbTransX = 0; lbTransY = 0;
+  const wrap = document.getElementById('lightbox-wrap');
+  if(wrap) wrap.classList.remove('zoomed','dragging');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox(){
+  const overlay = document.getElementById('lightbox-overlay');
+  if(overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  lbZoomed = false; lbTransX = 0; lbTransY = 0;
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+});
+
+document.addEventListener('DOMContentLoaded', function(){
+  // Click overlay background to close (not on image)
+  const lbOv = document.getElementById('lightbox-overlay');
+  if(lbOv) lbOv.addEventListener('click', function(e){
+    if(e.target === this) closeLightbox();
+  });
+
+  const wrap = document.getElementById('lightbox-wrap');
+  const img  = document.getElementById('lightbox-img');
+  const hint = document.getElementById('zoom-hint');
+  if(!wrap||!img) return;
+
+  // Click to zoom in/out
+  wrap.addEventListener('click', function(e){
+    if(lbDragging) return;
+    if(!lbZoomed){
+      // Zoom into click point
+      const rect = img.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width/2;
+      const cy = e.clientY - rect.top  - rect.height/2;
+      lbTransX = -cx * (ZOOM_LEVEL - 1);
+      lbTransY = -cy * (ZOOM_LEVEL - 1);
+      lbZoomed = true;
+      img.style.transition = 'transform 0.35s ease';
+      img.style.transform = 'scale('+ZOOM_LEVEL+') translate('+(lbTransX/ZOOM_LEVEL)+'px, '+(lbTransY/ZOOM_LEVEL)+'px)';
+      wrap.classList.add('zoomed');
+      if(hint) hint.textContent = '🖐 Trascina per spostarti · Clicca per tornare indietro';
+    } else {
+      // Reset zoom
+      lbZoomed = false; lbTransX = 0; lbTransY = 0;
+      img.style.transition = 'transform 0.3s ease';
+      img.style.transform = 'scale(1) translate(0,0)';
+      wrap.classList.remove('zoomed');
+      if(hint) hint.textContent = '🔍 Clicca per ingrandire · ESC per chiudere';
+    }
+  });
+
+  // Drag to pan when zoomed
+  wrap.addEventListener('mousedown', function(e){
+    if(!lbZoomed) return;
+    lbDragging = false;
+    lbStartX = e.clientX - lbTransX;
+    lbStartY = e.clientY - lbTransY;
+    wrap.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e){
+    if(!lbZoomed || !wrap.classList.contains('dragging')) return;
+    const dx = e.clientX - lbStartX;
+    const dy = e.clientY - lbStartY;
+    if(Math.abs(dx - lbTransX) > 3 || Math.abs(dy - lbTransY) > 3) lbDragging = true;
+    lbTransX = dx; lbTransY = dy;
+    img.style.transition = 'none';
+    img.style.transform = 'scale('+ZOOM_LEVEL+') translate('+(lbTransX/ZOOM_LEVEL)+'px, '+(lbTransY/ZOOM_LEVEL)+'px)';
+  });
+
+  document.addEventListener('mouseup', function(){
+    wrap.classList.remove('dragging');
+    setTimeout(()=>{ lbDragging = false; }, 50);
+  });
+
+  // Touch zoom & pan
+  let lbTouchStartX, lbTouchStartY, lbTouchTransX = 0, lbTouchTransY = 0;
+  let lbInitDist = 0, lbInitScale = 1, lbCurrentScale = 1;
+
+  wrap.addEventListener('touchstart', function(e){
+    if(e.touches.length === 2){
+      lbInitDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lbInitScale = lbCurrentScale;
+    } else if(e.touches.length === 1 && lbZoomed){
+      lbTouchStartX = e.touches[0].clientX - lbTransX;
+      lbTouchStartY = e.touches[0].clientY - lbTransY;
+    }
+  },{passive:true});
+
+  wrap.addEventListener('touchmove', function(e){
+    if(e.touches.length === 2){
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lbCurrentScale = Math.min(4, Math.max(1, lbInitScale * dist / lbInitDist));
+      lbZoomed = lbCurrentScale > 1.1;
+      img.style.transition = 'none';
+      img.style.transform = 'scale('+lbCurrentScale+') translate('+(lbTransX/lbCurrentScale)+'px,'+(lbTransY/lbCurrentScale)+'px)';
+      if(lbZoomed) wrap.classList.add('zoomed'); else wrap.classList.remove('zoomed');
+    } else if(e.touches.length === 1 && lbZoomed){
+      e.preventDefault();
+      lbTransX = e.touches[0].clientX - lbTouchStartX;
+      lbTransY = e.touches[0].clientY - lbTouchStartY;
+      img.style.transition = 'none';
+      img.style.transform = 'scale('+lbCurrentScale+') translate('+(lbTransX/lbCurrentScale)+'px,'+(lbTransY/lbCurrentScale)+'px)';
+    }
+  },{passive:false});
+});
+
+
+function showStoria(btn){
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('storia-section').classList.remove('hidden');
+  document.getElementById('products-section').classList.add('hidden');
+}
+
+function goToCategory(cat){
+  document.getElementById('storia-section').classList.add('hidden');
+  document.getElementById('products-section').classList.remove('hidden');
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('cat-'+cat);
+  if(btn) btn.classList.add('active');
+  currentCat = cat;
+  const t={lampade:'Lampade floreali',composizioni:'Composizioni decorative',regalo:'Idee regalo',giganti:'Fiori Giganti — Installazioni',vasi:'Vasi per le tue composizioni'};
+  document.getElementById('section-heading').textContent = t[cat]||cat;
+  renderProducts();
+  document.getElementById('products-section').scrollIntoView({behavior:'smooth'});
+}
+
+renderProducts();updateCartUI();
+
+</script>
 
 <!-- ADMIN TRIGGER -->
 <button class="admin-trigger" onclick="openAdmin()" title="Admin">⚙</button>
@@ -974,4 +1244,4 @@ async function exportSite(){
 
 
 </body>
-</html><script async data-explicit-opt-in="true" data-cookie-opt-in="true" data-deployment-id="dpl_6iz7MFQiRJpKpvtmWTJc96kqiYuz" src="https://vercel.live/_next-live/feedback/feedback.js"></script>
+</html>
