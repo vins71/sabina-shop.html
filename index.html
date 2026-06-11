@@ -873,8 +873,9 @@ async function exportSite(){
     const s=getSaved();
     const resp=await fetch(window.location.href);
     let html2=await resp.text();
-    html2=html2.replace(/<script id="sabina-init">[\s\S]*?<\/script>/,'');
-    const initScript='<script id="sabina-init">localStorage.setItem(\'sabina_settings\','+JSON.stringify(JSON.stringify(s))+');<\/script>';
+    const _imOpen='<scr'+'ipt id="sabina-init">', _imClose='<\/scr'+'ipt>';
+    html2=html2.replace(new RegExp(_imOpen+'[\\s\\S]*?'+_imClose),'');
+    const initScript=_imOpen+'localStorage.setItem(\'sabina_settings\','+JSON.stringify(JSON.stringify(s))+');'+_imClose;
     html2=html2.replace('<\/head>',initScript+'<\/head>');
     const blob=new Blob([html2],{type:'text/html;charset=utf-8'});
     const a=document.createElement('a');
