@@ -496,16 +496,16 @@ const PRODUCTS = [
   {id:30, cat:'composizioni',name:'Ortensia Azzurra & Anemone',     desc:'Ortensia azzurra sfumata con anemone blu navy. Vaso decorato. Dettaglio mozzafiato.',                          price:70,  img:'ortensia-azzurra'},
   {id:31, cat:'composizioni',name:'Girasole con Anemone',           desc:'Girasole giallo, anemone bianco e gerbera arancio in vaso di vetro ambra. Estate pura.',                      price:55,  img:'girasole-anemone-vaso'},
   {id:45, cat:'composizioni',name:'Composizione Blu Bianco',        desc:'Ortensia azzurra, peonia bianca e anemone blu in vaso decorato. Tag Fior di Carta Sabina incluso.',           price:72,  img:'bouquet-blu-bianco'},
-  {id:46, cat:'giganti',     name:'Rosa Gigante',                   desc:'Rosa in carta crespa di grandi dimensioni, petalo per petalo. Ideale come elemento decorativo scenografico per interni e vetrine.',          price:0, img:'lampade-esposizione'},
-  {id:47, cat:'giganti',     name:'Peonia Gigante',                 desc:'Peonia oversize dalla forma piena e morbida. Disponibile in diverse colorazioni. Perfetta per allestimenti scenografici.',                   price:0, img:'composizione-blu'},
-  {id:48, cat:'giganti',     name:'Girasole Gigante',               desc:'Girasole di grandi dimensioni, vivace e luminoso. Dona carattere a qualsiasi ambiente.',                                                       price:0, img:'bouquet-colorato'},
-  {id:49, cat:'giganti',     name:'Fiore Gigante — Su Misura',      desc:'Scegli il fiore, il colore e la dimensione. Realizziamo fiori giganti personalizzati per eventi, vetrine e installazioni artistiche.',         price:0, img:'dalie-blu-turchese'},
+  {id:46, cat:'giganti',     name:'Rosa Gigante',                   desc:'Rosa in carta crespa di grandi dimensioni, petalo per petalo. Ideale come elemento decorativo scenografico per interni e vetrine.',          price:0,   img:'lampade-esposizione'},
+  {id:47, cat:'giganti',     name:'Peonia Gigante',                 desc:'Peonia oversize dalla forma piena e morbida. Disponibile in diverse colorazioni. Perfetta per allestimenti scenografici.',                   price:0,   img:'composizione-blu'},
+  {id:48, cat:'giganti',     name:'Girasole Gigante',               desc:'Girasole di grandi dimensioni, vivace e luminoso. Dona carattere a qualsiasi ambiente.',                                                       price:0,   img:'bouquet-colorato'},
+  {id:49, cat:'giganti',     name:'Fiore Gigante — Su Misura',      desc:'Scegli il fiore, il colore e la dimensione. Realizziamo fiori giganti personalizzati per eventi, vetrine e installazioni artistiche.',         price:0,   img:'dalie-blu-turchese'},
 ];
 let _checkoutForWA=false;
 let cart=[], currentCat='all', selectedPayment='sumup';
 
 
-function catLabel(c){return{lampade:'Lampade',composizioni:'Composizioni',regalo:'Idea Regalo',giganti:'Fiori Giganti',vasi:'Vasi'}[c]||c}
+function catLabel(c){return{lampade:'Lampade',composizioni:'Composizioni',regalo:'Idee Regalo',giganti:'Fiori Giganti',vasi:'Vasi'}[c]||c}
 function filterCat(cat,btn){
   currentCat=cat;
   document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
@@ -862,25 +862,17 @@ function saveContatti(){
   setSaved(s); applySettings(); showSaveToast('\u2713 Contatti salvati!');
 }
 
-function resetAdmin(){
-  if(!confirm('Vuoi ripristinare tutti i valori originali? Verranno cancellate tutte le modifiche.')) return;
-  localStorage.removeItem('sabina_settings');
-  window._pendingPhotos={};
-  applySettings(); closeAdmin(); showSaveToast('Valori originali ripristinati!');
-}
 
 async function exportSite(){
   try{
     showSaveToast('Preparazione esportazione...');
     const s=getSaved();
     const resp=await fetch(window.location.href);
-    let html=await resp.text();
-    // Rimuovi eventuale script di init precedente
-    html=html.replace(/<script id="sabina-init">[\s\S]*?<\/script>/,'');
-    // Inietta le impostazioni correnti come script di init
+    let html2=await resp.text();
+    html2=html2.replace(/<script id="sabina-init">[\s\S]*?<\/script>/,'');
     const initScript='<script id="sabina-init">localStorage.setItem(\'sabina_settings\','+JSON.stringify(JSON.stringify(s))+');<\/script>';
-    html=html.replace('</head>',initScript+'</head>');
-    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    html2=html2.replace('<\/head>',initScript+'<\/head>');
+    const blob=new Blob([html2],{type:'text/html;charset=utf-8'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download='sabina-shop.html';
@@ -893,6 +885,12 @@ async function exportSite(){
     alert('Errore durante l\'esportazione. Riprova.');
     console.error(e);
   }
+}
+function resetAdmin(){
+  if(!confirm('Vuoi ripristinare tutti i valori originali? Verranno cancellate tutte le modifiche.')) return;
+  localStorage.removeItem('sabina_settings');
+  window._pendingPhotos={};
+  applySettings(); closeAdmin(); showSaveToast('Valori originali ripristinati!');
 }
 
 function applySettings(){
@@ -1224,8 +1222,8 @@ renderProducts();updateCartUI();
         <div id="admin-products-list"></div>
       </div>
 
-      <button class="admin-save" onclick="exportSite()" style="margin-top:12px;background:#2c5f2e">⬇ Esporta sito aggiornato</button>
       <button class="admin-reset" onclick="resetAdmin()" style="margin-top:8px">↩ Ripristina tutto ai valori originali</button>
+      <button class="admin-save" onclick="exportSite()" style="margin-top:12px;background:#2c5f2e">⬇ Esporta sito aggiornato</button>
     </div>
   </div>
 </div>
