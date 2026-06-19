@@ -426,6 +426,53 @@ footer .iubenda-embed:hover {
     <button class="success-close" onclick="closeSuccess()">Torna al catalogo</button>
   </div>
 </div>
+<!-- Modale Diritto di Recesso (Art. 11a Dir. Consumatori / Dir. UE 2023/2673) -->
+<div class="modal-overlay" id="recesso-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>Diritto di recesso</h2><button class="close-btn" onclick="closeRecesso()">&#10005;</button></div>
+    <div class="modal-body">
+
+      <!-- STEP 1: modulo -->
+      <div id="recesso-step1">
+        <div class="shipping-info-box">
+          <p>Hai <strong>14 giorni</strong> dal ricevimento per recedere dal tuo ordine. Compila il modulo: riceverai una <strong>email di conferma</strong>.<br>
+          <em style="font-size:12px">Nota: i prodotti <strong>personalizzati o realizzati su misura</strong> sono esclusi dal diritto di recesso.</em></p>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Nome</label><input type="text" id="r-nome" placeholder="Maria"></div>
+          <div class="form-group"><label>Cognome</label><input type="text" id="r-cognome" placeholder="Rossi"></div>
+        </div>
+        <div class="form-group"><label>Email</label><input type="email" id="r-email" placeholder="maria@esempio.it"></div>
+        <div class="form-group"><label>Numero / riferimento ordine</label><input type="text" id="r-ordine" placeholder="Es. ordine del 10/06 o n. ..."></div>
+        <div class="form-group"><label>Data dell&apos;ordine</label><input type="date" id="r-data"></div>
+        <div class="form-group"><label>Prodotto/i da restituire</label><textarea id="r-prodotti" placeholder="Es. 1 lampada rosa rossa"></textarea></div>
+        <button class="submit-order" onclick="recessoNext()">Continua</button>
+      </div>
+
+      <!-- STEP 2: conferma -->
+      <div id="recesso-step2" style="display:none">
+        <div class="order-summary">
+          <h3>Conferma la tua richiesta</h3>
+          <div id="recesso-riepilogo"></div>
+        </div>
+        <div class="shipping-info-box">
+          <p style="font-size:13px"><em>Con la presente comunico il recesso dal contratto di acquisto dei beni sopra indicati, ai sensi della normativa vigente sui diritti dei consumatori.</em></p>
+        </div>
+        <button id="recesso-submit-btn" class="submit-order" onclick="submitRecesso()">Conferma recesso</button>
+        <button onclick="recessoBack()" style="width:100%;margin-top:8px;background:none;border:none;color:var(--text-muted);text-decoration:underline;cursor:pointer;font-size:12px">&#8592; Torna indietro</button>
+      </div>
+
+      <!-- CONFERMA FINALE -->
+      <div id="recesso-done" style="display:none;text-align:center;padding:1rem">
+        <span style="font-size:42px">&#127800;</span>
+        <h2 style="font-family:var(--font-serif);color:var(--brown-dark);margin:.5rem 0">Richiesta inviata</h2>
+        <p id="recesso-done-msg" style="color:var(--text-muted);font-size:14px"></p>
+        <button class="submit-order" style="margin-top:1rem" onclick="closeRecesso()">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
 <footer>
   <div class="footer-logo">Sabina</div>
   <p>Atelier di Creazioni Floreali &middot; Arma di Taggia, Liguria</p>
@@ -434,6 +481,7 @@ footer .iubenda-embed:hover {
     <a id="footer-facebook" href="https://www.facebook.com/share/18oxUSsTEy/?mibextid=wwXIfr" target="_blank">Facebook</a>
     <a onclick="sendWhatsAppDirect()">WhatsApp</a>
     <a href="mailto:sabinasangio70@gmail.com">sabinasangio70@gmail.com</a>
+    <a onclick="openRecesso()">Diritto di recesso</a>
   </div>
   <p style="margin-top:1rem;font-size:11px">&copy; 2025 Sabina &mdash; Atelier di Creazioni Floreali &middot; Tutti i diritti riservati</p>
   <div style="margin-top:1rem;display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap">
@@ -674,6 +722,76 @@ function submitOrder(){
 function closeSuccess(){
   document.getElementById('success-overlay').classList.remove('open');
   ['f-nome','f-cognome','f-email','f-tel','f-indirizzo','f-note'].forEach(id=>{document.getElementById(id).value='';});
+}
+// --- Diritto di recesso (Dir. UE 2023/2673) ---
+function openRecesso(){
+  document.getElementById('recesso-step1').style.display='block';
+  document.getElementById('recesso-step2').style.display='none';
+  document.getElementById('recesso-done').style.display='none';
+  document.getElementById('recesso-modal').classList.add('open');
+}
+function closeRecesso(){
+  document.getElementById('recesso-modal').classList.remove('open');
+  ['r-nome','r-cognome','r-email','r-ordine','r-data','r-prodotti'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('recesso-step1').style.display='block';
+  document.getElementById('recesso-step2').style.display='none';
+  document.getElementById('recesso-done').style.display='none';
+}
+function recessoNext(){
+  var nome=document.getElementById('r-nome').value.trim();
+  var cognome=document.getElementById('r-cognome').value.trim();
+  var email=document.getElementById('r-email').value.trim();
+  var ordine=document.getElementById('r-ordine').value.trim();
+  var data=document.getElementById('r-data').value;
+  var prodotti=document.getElementById('r-prodotti').value.trim();
+  if(!nome||!cognome||!email||!prodotti){alert('Compila almeno nome, cognome, email e i prodotti da restituire.');return;}
+  var esc=function(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};
+  var html='<p><strong>Nome:</strong> '+esc(nome+' '+cognome)+'</p>'+
+           '<p><strong>Email:</strong> '+esc(email)+'</p>'+
+           (ordine?'<p><strong>Ordine:</strong> '+esc(ordine)+'</p>':'')+
+           (data?'<p><strong>Data ordine:</strong> '+esc(data)+'</p>':'')+
+           '<p><strong>Prodotti:</strong> '+esc(prodotti)+'</p>';
+  document.getElementById('recesso-riepilogo').innerHTML=html;
+  document.getElementById('recesso-step1').style.display='none';
+  document.getElementById('recesso-step2').style.display='block';
+}
+function recessoBack(){
+  document.getElementById('recesso-step2').style.display='none';
+  document.getElementById('recesso-step1').style.display='block';
+}
+function submitRecesso(){
+  var nome=document.getElementById('r-nome').value.trim();
+  var cognome=document.getElementById('r-cognome').value.trim();
+  var email=document.getElementById('r-email').value.trim();
+  var ordine=document.getElementById('r-ordine').value.trim();
+  var data=document.getElementById('r-data').value;
+  var prodotti=document.getElementById('r-prodotti').value.trim();
+  var btn=document.getElementById('recesso-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Invio in corso…';}
+  var payload={
+    name: nome+' '+cognome,
+    email: email,
+    "Numero ordine": ordine||'(non indicato)',
+    "Data ordine": data||'(non indicata)',
+    "Prodotti da restituire": prodotti,
+    _subject: 'Richiesta di RECESSO — '+nome+' '+cognome,
+    _template: 'table',
+    _captcha: 'false',
+    _autoresponse: 'Gentile '+nome+', abbiamo ricevuto la sua richiesta di recesso relativa a: '+prodotti+'. La contatteremo a breve per organizzare il reso e il rimborso secondo i termini di legge. Grazie, Sabina Atelier — Arma di Taggia (IM).'
+  };
+  fetch('https://formsubmit.co/ajax/sabinasangio70@gmail.com',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify(payload)
+  }).then(function(r){return r.json();}).then(function(res){
+    if(btn){btn.disabled=false;btn.textContent='Conferma recesso';}
+    document.getElementById('recesso-done-msg').textContent='Grazie '+nome+'. Abbiamo registrato la tua richiesta di recesso: riceverai a breve una email di conferma all’indirizzo '+email+'.';
+    document.getElementById('recesso-step2').style.display='none';
+    document.getElementById('recesso-done').style.display='block';
+  }).catch(function(err){
+    if(btn){btn.disabled=false;btn.textContent='Conferma recesso';}
+    alert('Si è verificato un problema nell’invio. Riprova tra poco, oppure scrivici a sabinasangio70@gmail.com.');
+  });
 }
 function sendWhatsApp(){
   if(cart.length===0)return;
