@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sabinaatelier.shop/sitemap.xml
+Sitemap: https://www.sabinaatelier.shop/sitemap.xml
